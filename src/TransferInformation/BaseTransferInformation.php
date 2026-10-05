@@ -101,6 +101,21 @@ class BaseTransferInformation implements TransferInformationInterface
     protected $postalAddress;
 
     /**
+     * @var string|null
+     */
+    protected $streetName;
+
+    /**
+     * @var string|null
+     */
+    protected $postCode;
+
+    /**
+     * @var string|null
+     */
+    protected $townName;
+
+    /**
      * @param int $amount amount in cents
      */
     public function __construct(int $amount, string $iban, string $name, ?string $identification = null)
@@ -224,5 +239,44 @@ class BaseTransferInformation implements TransferInformationInterface
     public function setPostalAddress($postalAddress): void
     {
         $this->postalAddress = $postalAddress;
+    }
+
+    public function getStreetName(): ?string
+    {
+        return $this->streetName;
+    }
+
+    /**
+     * @param string|null $streetName Maximum allowed length is 70 characters.
+     */
+    public function setStreetName(?string $streetName): void
+    {
+        $this->streetName = !empty($streetName) ? StringHelper::sanitizeString($streetName) : null;
+    }
+
+    public function getPostCode(): ?string
+    {
+        return $this->postCode;
+    }
+
+    /**
+     * @param string|null $postCode Maximum allowed length is 16 characters.
+     */
+    public function setPostCode(?string $postCode): void
+    {
+        $this->postCode = !empty($postCode) ? StringHelper::sanitizeString($postCode) : null;
+    }
+
+    public function getTownName(): ?string
+    {
+        return $this->townName;
+    }
+
+    /**
+     * @param string|null $townName Maximum allowed length is 35 characters.
+     */
+    public function setTownName(?string $townName): void
+    {
+        $this->townName = !empty($townName) ? StringHelper::sanitizeString($townName) : null;
     }
 }

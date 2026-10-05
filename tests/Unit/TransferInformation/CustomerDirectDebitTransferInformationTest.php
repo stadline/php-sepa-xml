@@ -73,4 +73,28 @@ class CustomerDirectDebitTransferInformationTest extends TestCase
 
         $this->assertEquals(19, $transfer->getTransferAmount());
     }
+
+    public function testStructuredAddressIsSanitized(): void
+    {
+        $transfer = new CustomerDirectDebitTransferInformation(100, 'DE12500105170648489890', 'Their Corp');
+        $transfer->setStreetName('49 rue de l\'Église');
+        $transfer->setPostCode('75008');
+        $transfer->setTownName('Saint-Étienne');
+
+        $this->assertEquals('49 rue de l Eglise', $transfer->getStreetName());
+        $this->assertEquals('75008', $transfer->getPostCode());
+        $this->assertEquals('Saint-Etienne', $transfer->getTownName());
+    }
+
+    public function testStructuredAddressIsNullWhenEmpty(): void
+    {
+        $transfer = new CustomerDirectDebitTransferInformation(100, 'DE12500105170648489890', 'Their Corp');
+        $transfer->setStreetName('');
+        $transfer->setPostCode(null);
+        $transfer->setTownName('');
+
+        $this->assertNull($transfer->getStreetName());
+        $this->assertNull($transfer->getPostCode());
+        $this->assertNull($transfer->getTownName());
+    }
 }

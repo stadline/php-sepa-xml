@@ -162,6 +162,21 @@ class CustomerDirectDebitTransferDomBuilder extends BaseDomBuilder
         if (in_array($this->painFormat, array('pain.008.003.02', 'pain.008.001.02'))) {
             $addPostalAddress = false;
             $postalAddress = $this->createElement('PstlAdr');
+            // Only PostalAddress6 (pain.008.001.02) supports the structured fields, in this order
+            if ($this->painFormat === 'pain.008.001.02') {
+                if ((bool)$transactionInformation->getStreetName()) {
+                    $postalAddress->appendChild($this->createElement('StrtNm', $transactionInformation->getStreetName()));
+                    $addPostalAddress = true;
+                }
+                if ((bool)$transactionInformation->getPostCode()) {
+                    $postalAddress->appendChild($this->createElement('PstCd', $transactionInformation->getPostCode()));
+                    $addPostalAddress = true;
+                }
+                if ((bool)$transactionInformation->getTownName()) {
+                    $postalAddress->appendChild($this->createElement('TwnNm', $transactionInformation->getTownName()));
+                    $addPostalAddress = true;
+                }
+            }
             if ((bool)$transactionInformation->getCountry()) {
                 $postalAddress->appendChild($this->createElement('Ctry', $transactionInformation->getCountry()));
                 $addPostalAddress = true;

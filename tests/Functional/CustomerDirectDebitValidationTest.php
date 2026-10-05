@@ -231,6 +231,138 @@ class CustomerDirectDebitValidationTest extends TestCase
         $this->assertEquals('Only A-Z without aeoeuessAeOeUe creditorSchemeId', $testNode->item(0)->textContent);
     }
 
+    /**
+     * Test the structured debtor address in the PostalAddress6 order of pain.008.001.02.
+     */
+    public function testStructuredDebtorPostalAddress(): void
+    {
+        $transfer = $this->createAddressTransfer();
+        $transfer->setStreetName('49 rue de l\'Église');
+        $transfer->setPostCode('75008');
+        $transfer->setTownName('Paris');
+        $transfer->setCountry('FR');
+
+        $xpathDoc = $this->buildAddressFile($transfer, 'pain.008.001.02');
+
+        $this->assertSame(
+            array('StrtNm', 'PstCd', 'TwnNm', 'Ctry'),
+            $this->getDebtorPostalAddressNodeNames($xpathDoc)
+        );
+        $this->assertEquals('49 rue de l Eglise', $xpathDoc->query('//sepa:Dbtr/sepa:PstlAdr/sepa:StrtNm')->item(0)->textContent);
+        $this->assertEquals('75008', $xpathDoc->query('//sepa:Dbtr/sepa:PstlAdr/sepa:PstCd')->item(0)->textContent);
+        $this->assertEquals('Paris', $xpathDoc->query('//sepa:Dbtr/sepa:PstlAdr/sepa:TwnNm')->item(0)->textContent);
+    }
+
+    /**
+     * Test that only the given structured fields are generated.
+     */
+    public function testStructuredDebtorPostalAddressWithoutStreetAndPostCode(): void
+    {
+        $transfer = $this->createAddressTransfer();
+        $transfer->setStreetName('');
+        $transfer->setPostCode(null);
+        $transfer->setTownName('Paris');
+        $transfer->setCountry('FR');
+
+        $xpathDoc = $this->buildAddressFile($transfer, 'pain.008.001.02');
+
+        $this->assertSame(array('TwnNm', 'Ctry'), $this->getDebtorPostalAddressNodeNames($xpathDoc));
+    }
+
+    /**
+     * Test that the address lines still follow the structured fields.
+     */
+    public function testStructuredDebtorPostalAddressWithAddressLine(): void
+    {
+        $transfer = $this->createAddressTransfer();
+        $transfer->setStreetName('49 bd Haussmann');
+        $transfer->setPostCode('75008');
+        $transfer->setTownName('Paris');
+        $transfer->setCountry('FR');
+        $transfer->setPostalAddress('Batiment B');
+
+        $xpathDoc = $this->buildAddressFile($transfer, 'pain.008.001.02');
+
+        $this->assertSame(
+            array('StrtNm', 'PstCd', 'TwnNm', 'Ctry', 'AdrLine'),
+            $this->getDebtorPostalAddressNodeNames($xpathDoc)
+        );
+    }
+
+    /**
+     * Test that the structured fields are ignored by the formats which only support Ctry and AdrLine.
+     *
+     * @dataProvider provideSchemaWithoutStructuredAddress
+     */
+    public function testStructuredDebtorPostalAddressIsIgnoredWithoutSupport(string $schema): void
+    {
+        $transfer = $this->createAddressTransfer();
+        $transfer->setStreetName('49 bd Haussmann');
+        $transfer->setPostCode('75008');
+        $transfer->setTownName('Paris');
+
+        $xpathDoc = $this->buildAddressFile($transfer, $schema);
+
+        $this->assertSame(array(), $this->getDebtorPostalAddressNodeNames($xpathDoc));
+    }
+
+    public function provideSchemaWithoutStructuredAddress(): iterable
+    {
+        return array(
+            array('pain.008.002.02'),
+            array('pain.008.003.02')
+        );
+    }
+
+    private function createAddressTransfer(): CustomerDirectDebitTransferInformation
+    {
+        $transfer = new CustomerDirectDebitTransferInformation(2, 'FI1350001540000056', 'Their Corp');
+        $transfer->setBic('OKOYFIHH');
+        $transfer->setMandateSignDate(new \DateTime('16.08.2013'));
+        $transfer->setMandateId('ABCDE');
+
+        return $transfer;
+    }
+
+    /**
+     * Build the file, check it against the XSD and return an XPath on it.
+     */
+    private function buildAddressFile(CustomerDirectDebitTransferInformation $transfer, string $schema): \DOMXPath
+    {
+        $sepaFile = new CustomerDirectDebitTransferFile(new GroupHeader('transferID', 'Me'));
+
+        $payment = new PaymentInformation('Payment Info ID', 'FR1420041010050500013M02606', 'PSSTFRPPMON', 'My Corp');
+        $payment->setSequenceType(PaymentInformation::S_ONEOFF);
+        $payment->setDueDate(new \DateTime('22.08.2013'));
+        $payment->setCreditorId('DE21WVM1234567890');
+        $payment->addTransfer($transfer);
+        $sepaFile->addPaymentInformation($payment);
+
+        $domBuilder = new CustomerDirectDebitTransferDomBuilder($schema);
+        $sepaFile->accept($domBuilder);
+        $this->dom->loadXML($domBuilder->asXml());
+
+        $this->assertTrue($this->dom->schemaValidate(__DIR__ . '/../fixtures/' . $schema . '.xsd'));
+
+        $xpathDoc = new \DOMXPath($this->dom);
+        $xpathDoc->registerNamespace('sepa', 'urn:iso:std:iso:20022:tech:xsd:' . $schema);
+
+        return $xpathDoc;
+    }
+
+    /**
+     * @return string[]
+     */
+    private function getDebtorPostalAddressNodeNames(\DOMXPath $xpathDoc): array
+    {
+        $nodeNames = array();
+        foreach ($xpathDoc->query('//sepa:Dbtr/sepa:PstlAdr/*') as $node) {
+            $nodeNames[] = $node->localName;
+        }
+
+        return $nodeNames;
+    }
+
     public function provideSchema(): iterable
     {
         return array(
